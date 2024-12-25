@@ -1,5 +1,5 @@
 // app/layout.js
-import './global.css'
+import './globals.css'
 
 export const metadata = {
   title: 'My Communication App',
