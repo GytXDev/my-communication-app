@@ -1,3 +1,4 @@
+// app/page.js
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -5,7 +6,6 @@ import Sidebar from "./components/Sidebar";
 import CommunityList from "./components/CommunityList";
 import ProfilePanel from "./components/ProfilePanel";
 import MainView from "./components/MainView";
-import { Loader2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 
 export default function HomePage() {
@@ -29,12 +29,9 @@ export default function HomePage() {
     }
   }, [user, loading, router]);
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="w-10 h-10 animate-spin text-gray-500" />
-      </div>
-    );
+  // Ne pas rendre le contenu si loading ou utilisateur non authentifié
+  if (loading || !user) {
+    return null; // Le AuthProvider gère le rendu de l'indicateur de chargement
   }
 
   return (
@@ -62,8 +59,8 @@ export default function HomePage() {
       <MainView
         selectedMenu={selectedMenu}
         selectedCommunity={selectedCommunity}
-        isCreateCommunityOpen={isCreateCommunityOpen} 
-        onCloseCreateCommunity={handleCloseCreateCommunity} 
+        isCreateCommunityOpen={isCreateCommunityOpen}
+        onCloseCreateCommunity={handleCloseCreateCommunity}
       />
     </div>
   );
