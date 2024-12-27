@@ -1,9 +1,9 @@
 // app/components/Sidebar.js
 "use client"
 
-import { FaUsers, FaEnvelope, FaRocketchat, FaUser } from 'react-icons/fa'
+import { FaUsers, FaRocketchat, FaUser } from 'react-icons/fa'
 
-export default function Sidebar({ selectedMenu, onMenuSelect, userData }) {
+export default function Sidebar({ selectedMenu, onMenuSelect, userData, }) {
     return (
         <div className="w-16 md:w-20 bg-white border-r border-gray-200 flex flex-col items-center py-4">
             {/* Communauté */}

@@ -1,3 +1,4 @@
+// app/page.js
 "use client"
 import { useEffect, useState } from "react";
 import { auth, db } from "@/lib/firebaseConfig"; // Assurez-vous d'importer votre configuration Firebase
@@ -11,7 +12,18 @@ import MainView from "./components/MainView";
 export default function HomePage() {
   const [selectedMenu, setSelectedMenu] = useState("communaute");
   const [selectedCommunity, setSelectedCommunity] = useState(null);
+  const [isCreateCommunityOpen, setCreateCommunityOpen] = useState(false);
   const [userData, setUserData] = useState(null);
+
+  
+
+  const handleCloseCreateCommunity = () => {
+    setCreateCommunityOpen(false); // Désactiver le mode création
+  };
+
+  const handleCreateCommunity = () => {
+    setCreateCommunityOpen(true);
+  };
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -38,15 +50,17 @@ export default function HomePage() {
     return () => unsubscribe(); // Nettoyage de l'abonnement
   }, []);
 
+
   return (
     <div className="flex min-h-screen bg-gray-50 text-black">
       {/* Barre latérale */}
-      <Sidebar selectedMenu={selectedMenu} onMenuSelect={setSelectedMenu} userData={userData} />
+      <Sidebar
+        selectedMenu={selectedMenu}
+        onMenuSelect={setSelectedMenu}
+        userData={userData}
+      />
 
-      {/* 
-        Si le menu sélectionné est "profile", on affiche <ProfilePanel />
-        Sinon, on affiche <CommunityList />
-      */}
+      {/* Afficher CommunityList ou ProfilePanel */}
       {selectedMenu === "profile" ? (
         <ProfilePanel />
       ) : (
@@ -54,13 +68,16 @@ export default function HomePage() {
           show={selectedMenu === "communaute"}
           selectedCommunity={selectedCommunity}
           onSelectCommunity={setSelectedCommunity}
+          onCreateCommunity={handleCreateCommunity} // Passer la fonction ici
         />
       )}
 
-      {/* Le MainView reste identique, il ne dépend pas de "profile" */}
+      {/* Le MainView avec le formulaire de création */}
       <MainView
         selectedMenu={selectedMenu}
         selectedCommunity={selectedCommunity}
+        isCreateCommunityOpen={isCreateCommunityOpen} 
+        onCloseCreateCommunity={handleCloseCreateCommunity} 
       />
     </div>
   );
