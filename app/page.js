@@ -1,21 +1,19 @@
-// app/page.js
-"use client"
+"use client";
 import { useEffect, useState } from "react";
-import { auth, db } from "@/lib/firebaseConfig"; // Assurez-vous d'importer votre configuration Firebase
-import { onAuthStateChanged } from "firebase/auth";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { useRouter } from "next/navigation";
 import Sidebar from "./components/Sidebar";
 import CommunityList from "./components/CommunityList";
 import ProfilePanel from "./components/ProfilePanel";
 import MainView from "./components/MainView";
+import { Loader2 } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 
 export default function HomePage() {
+  const router = useRouter();
+  const { user, loading } = useAuth();
   const [selectedMenu, setSelectedMenu] = useState("communaute");
   const [selectedCommunity, setSelectedCommunity] = useState(null);
   const [isCreateCommunityOpen, setCreateCommunityOpen] = useState(false);
-  const [userData, setUserData] = useState(null);
-
-  
 
   const handleCloseCreateCommunity = () => {
     setCreateCommunityOpen(false); // Désactiver le mode création
@@ -26,30 +24,18 @@ export default function HomePage() {
   };
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
-        const docRef = doc(db, "users", user.uid);
-        const docSnap = await getDoc(docRef);
+    if (!loading && !user) {
+      router.push("/login"); // Rediriger si non authentifié
+    }
+  }, [user, loading, router]);
 
-        if (docSnap.exists()) {
-          setUserData(docSnap.data());
-        } else {
-          const newUserData = {
-            displayName: user.displayName || "Utilisateur",
-            photoURL: user.photoURL || null,
-            createdAt: new Date().toISOString(),
-          };
-          await setDoc(docRef, newUserData);
-          setUserData(newUserData);
-        }
-      } else {
-        setUserData(null); // Utilisateur non authentifié
-      }
-    });
-
-    return () => unsubscribe(); // Nettoyage de l'abonnement
-  }, []);
-
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="w-10 h-10 animate-spin text-gray-500" />
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen bg-gray-50 text-black">
@@ -57,7 +43,7 @@ export default function HomePage() {
       <Sidebar
         selectedMenu={selectedMenu}
         onMenuSelect={setSelectedMenu}
-        userData={userData}
+        userData={user}
       />
 
       {/* Afficher CommunityList ou ProfilePanel */}
