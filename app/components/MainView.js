@@ -1,32 +1,78 @@
 // app/components/MainView.js
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import { FaLock } from "react-icons/fa";
+import CreateCommunityForm from "./CreateCommunityForm"; // Importer le nouveau composant
+import { db, storage } from "@/lib/firebaseConfig";
+import { addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
-export default function MainView({ selectedMenu, selectedCommunity, isCreateCommunityOpen, onCloseCreateCommunity }) {
+export default function MainView({
+    selectedMenu,
+    selectedCommunity,
+    isCreateCommunityOpen,
+    onCloseCreateCommunity,
+}) {
+    const handleCreateCommunity = async (formData) => {
+        try {
+            let imageUrl = "";
+            if (formData.image) {
+                // Créer une référence de stockage unique pour l'image
+                const storageRef = ref(storage, `communities/${formData.image.name}-${Date.now()}`);
+                // Téléverser l'image
+                await uploadBytes(storageRef, formData.image);
+                // Obtenir l'URL de téléchargement
+                imageUrl = await getDownloadURL(storageRef);
+            }
+
+            // Ajouter la communauté à Firestore avec le statut actif
+            const communityRef = await addDoc(collection(db, "communities"), {
+                name: formData.name,
+                description: formData.description,
+                tags: formData.tags,
+                type: formData.type,
+                image: imageUrl,
+                memberCount: 0,
+                members: [],
+                subCommunities: [],
+                permissions: {
+                    canPost: formData.permissions.canPost ? ["admin"] : [],
+                    canComment: formData.permissions.canComment ? ["all"] : [],
+                    canCreateSubCommunity: formData.permissions.canCreateSubCommunity ? ["admin"] : [],
+                },
+                createdBy: "current_user_id", // Remplacer par l'ID réel de l'utilisateur
+                status: "active", // Passer à "active" si le paiement est réussi
+                createdAt: serverTimestamp(),
+            });
+
+            // Fermer le formulaire de création
+            onCloseCreateCommunity();
+            alert("Communauté créée avec succès !");
+        } catch (error) {
+            console.error("Erreur lors de la création de la communauté:", error);
+            alert("Une erreur est survenue lors de la création de la communauté.");
+        }
+    };
+
     return (
         <div className="flex-1 p-4 relative">
             {/* S’il s’agit de l’onglet Communauté */}
             {selectedMenu === "communaute" && (
                 <>
                     {isCreateCommunityOpen ? (
-                        <div className="text-center">
-                            <h2 className="text-xl font-bold mb-4">Créer une communauté</h2>
-                            <p>Remplissez les informations nécessaires pour créer une nouvelle communauté.</p>
-                            <button
-                                onClick={onCloseCreateCommunity}
-                                className="mt-4 bg-gray-300 px-4 py-2 rounded-md"
-                            >
-                                Annuler
-                            </button>
-                        </div>
+                        <CreateCommunityForm
+                            onClose={onCloseCreateCommunity}
+                            onCreate={handleCreateCommunity}
+                        />
                     ) : selectedCommunity ? (
                         <div>
                             <h2 className="text-xl font-bold mb-2">
                                 Communauté #{selectedCommunity}
                             </h2>
-                            <p>Contenu, posts, discussions… pour la communauté {selectedCommunity}.</p>
+                            <p>
+                                Contenu, posts, discussions… pour la communauté {selectedCommunity}.
+                            </p>
                         </div>
                     ) : (
                         <div className="text-gray-500 flex flex-col items-center justify-center h-full">

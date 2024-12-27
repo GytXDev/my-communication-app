@@ -1,4 +1,3 @@
-// app/components/ProfilePanel.js
 /* eslint-disable @next/next/no-img-element */
 "use client"
 
@@ -21,8 +20,8 @@ import {
     Loader2 // Spinner
 } from "lucide-react"
 
-// Emoji picker (v5 ou v6) : npm install emoji-mart @emoji-mart/data @emoji-mart/react
-import { Picker } from 'emoji-mart'
+// Emoji picker alternative : npm install emoji-picker-react
+import EmojiPicker from 'emoji-picker-react'
 
 // Exporte le composant principal
 export default function ProfilePanel() {
@@ -76,6 +75,7 @@ export default function ProfilePanel() {
                     const newUserData = {
                         displayName: user.displayName || "Utilisateur",
                         photoURL: user.photoURL || null,
+                        description: "", // Ajout d'un champ description vide
                         createdAt: new Date().toISOString(),
                     }
                     await setDoc(docRef, newUserData)
@@ -110,16 +110,18 @@ export default function ProfilePanel() {
             const docRef = doc(db, "users", auth.currentUser.uid)
             const updatedData = {
                 ...userData,
-                displayName: tempName || "Utilisateur",
+                displayName: tempName.trim() || "Utilisateur",
             }
             // MAJ Firestore
             await setDoc(docRef, updatedData, { merge: true })
             // MAJ Auth
             await updateProfile(auth.currentUser, {
-                displayName: tempName || "Utilisateur",
+                displayName: tempName.trim() || "Utilisateur",
             })
             setUserData(updatedData)
             setEditingName(false)
+        } catch (error) {
+            console.error("Erreur lors de la sauvegarde du nom :", error.message)
         } finally {
             setIsSaving(false)
         }
@@ -200,6 +202,11 @@ export default function ProfilePanel() {
         }
     }
 
+    // Gestion de l'ajout d'emojis avec emoji-picker-react
+    const handleEmojiClick = (emojiData) => {
+        setTempName((prev) => prev + emojiData.emoji)
+        setShowEmojiPicker(false)
+    }
 
     // === RENDER ===
 
@@ -211,11 +218,11 @@ export default function ProfilePanel() {
                     {/* Avatar skeleton */}
                     <div className="rounded-full bg-gray-200 h-32 w-32"></div>
                     {/* Nom skeleton */}
-                    <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-                    <div className="h-3 bg-gray-200 rounded w-1/4"></div>
+                    <div className="h-6 bg-gray-200 rounded w-1/2"></div>
+                    <div className="h-4 bg-gray-200 rounded w-1/4"></div>
                     {/* 2-3 lignes */}
-                    <div className="h-3 bg-gray-200 rounded w-3/4"></div>
-                    <div className="h-3 bg-gray-200 rounded w-2/3"></div>
+                    <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                    <div className="h-4 bg-gray-200 rounded w-2/3"></div>
                 </div>
             </div>
         )
@@ -225,7 +232,7 @@ export default function ProfilePanel() {
     if (!userData) {
         return (
             <div className="w-80 bg-white border-r border-gray-200 p-6 hidden md:block">
-                <p className="text-gray-500">Aucun utilisateur connecté.</p>
+                <p className="text-gray-500 text-lg">Aucun utilisateur connecté.</p>
             </div>
         )
     }
@@ -242,7 +249,7 @@ export default function ProfilePanel() {
             )}
 
             {/* Avatar + menu */}
-            <div className="relative flex flex-col items-center mb-4">
+            <div className="relative flex flex-col items-center mb-6">
                 <img
                     onClick={handleAvatarClick}
                     src={userData.photoURL || "/images/avatar.jpeg"}
@@ -281,7 +288,7 @@ export default function ProfilePanel() {
             </div>
 
             {/* Nom utilisateur + Emojis */}
-            <div className="mb-4 text-center">
+            <div className="mb-6 text-center">
                 {editingName ? (
                     <div className="flex flex-col items-center gap-2 justify-center mb-2 relative">
                         <div className="flex items-center gap-2">
@@ -289,22 +296,22 @@ export default function ProfilePanel() {
                                 type="text"
                                 value={tempName}
                                 onChange={(e) => setTempName(e.target.value)}
-                                className="border border-gray-300 rounded px-2 py-1"
+                                className="border border-gray-300 rounded px-2 py-1 text-lg"
                             />
                             {/* Bouton Emojis */}
                             <button
                                 type="button"
                                 onClick={() => setShowEmojiPicker((prev) => !prev)}
-                                className="bg-gray-200 hover:bg-gray-300 text-sm px-2 py-1 rounded"
+                                className="bg-gray-200 hover:bg-gray-300 text-lg px-3 py-1 rounded"
                             >
-                                😀
+                                😊
                             </button>
 
                             {/* Bouton OK */}
                             <button
                                 onClick={handleSaveName}
                                 disabled={isSaving}
-                                className="bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700 text-sm flex items-center gap-1"
+                                className="bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 text-lg flex items-center gap-1"
                             >
                                 {isSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
                                 <span>OK</span>
@@ -313,79 +320,74 @@ export default function ProfilePanel() {
 
                         {/* Emoji Picker */}
                         {showEmojiPicker && (
-                            <div className="absolute top-full mt-2 bg-white border rounded shadow z-50">
-                                <Picker
-                                    set="apple"
-                                    title="Choisir un émoji"
-                                    onSelect={(emoji) => {
-                                        // Insérer l’emoji dans tempName
-                                        setTempName(tempName + emoji.native)
-                                        setShowEmojiPicker(false)
-                                    }}
+                            <div className="absolute top-full mt-2">
+                                <EmojiPicker
+                                    onEmojiClick={handleEmojiClick}
+                                    pickerStyle={{ boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)' }}
                                 />
                             </div>
                         )}
                     </div>
                 ) : (
-                    <h2 className="text-xl font-semibold">
-                        {userData.displayName}
+                    <h2 className="text-2xl font-semibold">
+                        {userData.displayName || "Utilisateur"}
                         <button
                             onClick={handleEditName}
                             disabled={isSaving}
-                            className="ml-2 text-blue-500 hover:underline align-middle text-sm"
+                            className="ml-2 text-blue-500 hover:underline align-middle text-base"
                         >
                             <Edit className="inline-block w-4 h-4 mr-1" />
                             Éditer
                         </button>
                     </h2>
                 )}
-                <p className="text-xs text-gray-400 mt-1">
-                    Ce nom sera visible par vos contacts.
+                <p className="text-md text-gray-500 mt-2">
+                    Ce nom sera visible dans vos communautés, discussions et échanges.
                 </p>
             </div>
 
-            <hr className="mb-4" />
+            <hr className="mb-6" />
 
             {/* Bio / Description */}
-            <div className="mb-4">
-                <p className="text-sm text-gray-600">
-                    {userData.description || "Aucune description pour le moment."}
+            <div className="mb-6">
+                <p className="text-base text-gray-600">
+                    {userData.description || "Vous n'avez pas encore de description."}
                 </p>
             </div>
 
-            <hr className="mb-4" />
+            <hr className="mb-6" />
 
             {/* Menu Paramètres rapide */}
-            <div className="space-y-2 mb-4">
+            <div className="space-y-3 mb-6">
                 <button
                     onClick={() => alert("Gérer les notifications")}
                     disabled={isSaving}
-                    className="flex items-center w-full px-3 py-2 rounded hover:bg-gray-100 text-left"
+                    className="flex items-center w-full px-4 py-2 rounded hover:bg-gray-100 text-left text-lg"
                 >
-                    <Bell className="w-5 h-5 mr-2 text-gray-500" />
-                    <span className="text-sm font-medium">Notifications</span>
+                    <Bell className="w-5 h-5 mr-3 text-gray-500" />
+                    <span className="font-medium">Notifications</span>
                 </button>
 
                 <button
                     onClick={() => alert("Centre d'aide")}
                     disabled={isSaving}
-                    className="flex items-center w-full px-3 py-2 rounded hover:bg-gray-100 text-left"
+                    className="flex items-center w-full px-4 py-2 rounded hover:bg-gray-100 text-left text-lg"
                 >
-                    <HelpCircle className="w-5 h-5 mr-2 text-gray-500" />
-                    <span className="text-sm font-medium">Aide</span>
+                    <HelpCircle className="w-5 h-5 mr-3 text-gray-500" />
+                    <span className="font-medium">Aide</span>
                 </button>
             </div>
 
-            <hr className="my-4" />
+            <hr className="my-6" />
 
             {/* Bouton Déconnexion */}
             <button
                 onClick={handleLogout}
                 disabled={isSaving}
-                className="flex items-center w-full px-3 py-2 rounded text-red-600 hover:bg-red-100 text-left"
+                className="flex items-center w-full px-4 py-2 rounded text-red-600 hover:bg-red-100 text-lg text-left"
             >
-                <LogOut className="w-5 h-5 mr-2" />
-                <span className="text-sm font-medium">Se déconnecter</span>
+                <LogOut className="w-5 h-5 mr-3" />
+                <span className="font-medium">Se déconnecter</span>
             </button>
         </div>
     )

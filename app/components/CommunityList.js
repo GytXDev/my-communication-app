@@ -1,11 +1,11 @@
 /* eslint-disable @next/next/no-img-element */
 // app/components/CommunityList.js
-"use client"
+"use client";
 
-import React, { useEffect, useState } from 'react'
-import { FaSearch, FaLongArrowAltLeft } from 'react-icons/fa'
-import { db } from '@/lib/firebaseConfig'; // Assurez-vous d'importer votre configuration Firebase
-import { collection, getDocs } from 'firebase/firestore'
+import React, { useEffect, useState } from 'react';
+import { FaSearch, FaLongArrowAltLeft } from 'react-icons/fa';
+import { db } from '@/lib/firebaseConfig'; 
+import { collection, getDocs, query, where } from 'firebase/firestore';
 
 export default function CommunityList({ show, selectedCommunity, onSelectCommunity, onCreateCommunity }) {
   const [searchText, setSearchText] = useState("");
@@ -13,8 +13,10 @@ export default function CommunityList({ show, selectedCommunity, onSelectCommuni
 
   useEffect(() => {
     const fetchCommunities = async () => {
+      // Filtrer pour n'afficher que les communautés actives
       const communitiesCollection = collection(db, "communities");
-      const communitiesSnapshot = await getDocs(communitiesCollection);
+      const q = query(communitiesCollection, where("status", "==", "active"));
+      const communitiesSnapshot = await getDocs(q);
       const communitiesList = communitiesSnapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
@@ -37,13 +39,18 @@ export default function CommunityList({ show, selectedCommunity, onSelectCommuni
     setSearchText("");
   };
 
+  // Filtrer les communautés selon le texte de recherche
+  const filteredCommunities = communities.filter((comm) =>
+    comm.name.toLowerCase().includes(searchText.toLowerCase())
+  );
+
   return (
     <div className="w-80 bg-white border-r border-gray-200 p-4 hidden md:block">
       <h2 className="text-2xl font-semibold mb-4">Communautés</h2>
 
       <div className="flex items-center mb-4">
         <button
-          onClick={handleCreateCommunity} // Appelle la fonction ici
+          onClick={handleCreateCommunity}
           className="flex items-center px-4 py-2 rounded-md transition duration-200"
         >
           <span className="bg-purple-500 text-white px-2 py-1 rounded-l-md shadow-md hover:bg-purple-600 transition duration-200">
@@ -73,26 +80,33 @@ export default function CommunityList({ show, selectedCommunity, onSelectCommuni
       </div>
 
       {/* Liste des communautés */}
-      {communities.length === 0 ? (
+      {filteredCommunities.length === 0 ? (
         <div className="text-center text-gray-500 mt-4">
           <p>Aucune communauté disponible.</p>
           <p>Créez-en une pour commencer à interagir !</p>
         </div>
       ) : (
         <ul>
-          {communities.map((comm) => (
+          {filteredCommunities.map((comm) => (
             <li key={comm.id}>
               <button
                 onClick={() => onSelectCommunity(comm.id)}
-                className={`block w-full text-left px-2 py-1 rounded mb-1 ${selectedCommunity === comm.id ? "bg-purple-100" : "hover:bg-gray-100"
-                  }`}
+                className={`block w-full text-left px-2 py-1 rounded mb-1 ${
+                  selectedCommunity === comm.id
+                    ? "bg-purple-100"
+                    : "hover:bg-gray-100"
+                }`}
               >
                 <div className="flex items-center">
-                  <img src={comm.image} alt={comm.name} className="w-10 h-10 rounded-full mr-2" />
+                  <img
+                    src={comm.image}
+                    alt={comm.name}
+                    className="w-10 h-10 rounded-full mr-2"
+                  />
                   <div className="flex-1">
                     <span className="font-semibold">{comm.name}</span>
                     <div className="text-sm text-gray-500">
-                      {comm.memberCount} membre{comm.memberCount > 1 ? "s" : ""}
+                      {comm.memberCount} membre{comm.memberCount !== 1 ? "s" : ""}
                     </div>
                   </div>
                 </div>
