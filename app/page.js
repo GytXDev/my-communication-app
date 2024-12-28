@@ -59,8 +59,8 @@ export default function HomePage() {
       <MainView
         selectedMenu={selectedMenu}
         selectedCommunity={selectedCommunity}
-        isCreateCommunityOpen={isCreateCommunityOpen}
-        onCloseCreateCommunity={handleCloseCreateCommunity}
+        isCreateCommunityOpen={isCreateCommunityOpen} 
+        onCloseCreateCommunity={handleCloseCreateCommunity} 
       />
     </div>
   );

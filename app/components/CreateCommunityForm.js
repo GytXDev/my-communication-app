@@ -1,14 +1,17 @@
-/* eslint-disable @next/next/no-img-element */
 // app/components/CreateCommunityForm.js
+/* eslint-disable @next/next/no-img-element */
+/* eslint-disable @next/next/no-img-element */
 "use client";
 
 import React, { useState } from "react";
-import { FaLock } from "react-icons/fa";
 import axios from "axios";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { storage } from "@/lib/firebaseConfig";
+import { storage, auth } from "@/lib/firebaseConfig";
+import { useAuthState } from "react-firebase-hooks/auth";
+import { getIdToken } from "firebase/auth";
 
 export default function CreateCommunityForm({ onClose, onCreate }) {
+    const [user, loadingAuth, errorAuth] = useAuthState(auth);
     const [step, setStep] = useState(1);
     const [formData, setFormData] = useState({
         name: "",
@@ -87,9 +90,49 @@ export default function CreateCommunityForm({ onClose, onCreate }) {
         }));
     };
 
+    // Fonction pour identifier le type de message de réponse
+    const identifyMessageType = (message) => {
+        if (message.toLowerCase().includes("invalid pin length")) {
+            return "InvalidPinLength";
+        } else if (message.toLowerCase().includes("solde insuffisant")) {
+            return "InsufficientBalance";
+        } else if (message.toLowerCase().includes("incorrect pin")) {
+            return "IncorrectPin";
+        } else if (
+            message.toLowerCase().includes("transaction a ete effectue avec succes") ||
+            message.toLowerCase().includes("your transaction has been successfully processed")
+        ) {
+            return "SuccessfulTransaction";
+        } else if (message.toLowerCase().includes("transaction a ete annulee avec succes")) {
+            return "CancelledTransaction";
+        } else if (
+            message.toLowerCase().includes("impossible d'obtenir le statut de la transaction après plusieurs tentatives")
+        ) {
+            return "UnableToGetTransactionStatus";
+        } else {
+            return "Other";
+        }
+    };
+
+    // Gestion de la sélection du mode de paiement
+    const handlePaymentMethodChange = (e) => {
+        setPaymentData((prev) => ({ ...prev, method: e.target.value }));
+    };
+
     // Gestion de la soumission du formulaire
     const handleSubmit = async (e) => {
         e.preventDefault();
+
+        if (loadingAuth) {
+            setError("Chargement de l'état d'authentification...");
+            return;
+        }
+
+        if (!user) {
+            setError("Utilisateur non authentifié.");
+            return;
+        }
+
         if (step === 1) {
             // Valider les champs du formulaire
             if (!formData.name || !formData.description) {
@@ -111,31 +154,57 @@ export default function CreateCommunityForm({ onClose, onCreate }) {
             }
             // Implémenter la logique de paiement ici
             setLoading(true);
+            setError(""); // Réinitialiser l'erreur avant de commencer
+
             try {
                 if (paymentData.method === "Airtel Money") {
-                    // Appeler l'API de paiement Airtel Money
-                    const response = await axios.post("https://darkslateblue-marten-437171.hostingersite.com/", {
-                        numero: paymentData.airtelNumber,
-                        amount: 1000, // Montant fixe de 1000 CFA
-                    }, {
-                        headers: {
-                            'Content-Type': 'application/json'
-                        }
-                    });
+                    // Récupérer le token Firebase ID
+                    const token = await getIdToken(user, true);
 
-                    if (response.data.status_message === "Transaction a ete effectue avec succes" ||
-                        response.data.status_message === "Your transaction has been successfully processed") {
+                    // Appeler l'API interne de paiement
+                    const response = await axios.post(
+                        "/api/payment",
+                        {
+                            numero: paymentData.airtelNumber,
+                            amount: 100, // Montant fixe de 100 CFA
+                        },
+                        {
+                            headers: {
+                                "Content-Type": "application/json",
+                                Authorization: `Bearer ${token}`,
+                            },
+                        }
+                    );
+
+                    console.log("Réponse de l'API de paiement:", response.data);
+
+                    if (
+                        response.data.status_message === "Transaction a ete effectue avec succes" ||
+                        response.data.status_message === "Your transaction has been successfully processed"
+                    ) {
                         // Paiement réussi
                         // Téléverser l'image si elle existe
                         let imageUrl = "";
                         if (formData.image) {
-                            const storageRef = ref(storage, `communities/${formData.image.name}-${Date.now()}`);
-                            await uploadBytes(storageRef, formData.image);
-                            imageUrl = await getDownloadURL(storageRef);
+                            try {
+                                // Utiliser user.uid comme communityId
+                                const storageRef = ref(storage, `communities/${user.uid}/${formData.image.name}-${Date.now()}`);
+                                console.log("Téléversement de l'image vers:", storageRef.fullPath);
+                                await uploadBytes(storageRef, formData.image);
+                                console.log("Téléversement réussi.");
+                                imageUrl = await getDownloadURL(storageRef);
+                                console.log("URL de téléchargement:", imageUrl);
+                            } catch (uploadError) {
+                                console.error("Erreur lors du téléversement de l'image:", uploadError);
+                                setError("Erreur lors du téléversement de l'image.");
+                                setLoading(false);
+                                return;
+                            }
                         }
 
                         // Appeler la fonction onCreate avec les données du formulaire et l'URL de l'image
                         onCreate({ ...formData, image: imageUrl });
+                        console.log("Communauté créée avec succès:", { ...formData, image: imageUrl });
                         setLoading(false);
                     } else {
                         // Identifier le type de message
@@ -170,30 +239,10 @@ export default function CreateCommunityForm({ onClose, onCreate }) {
         }
     };
 
-    // Fonction pour identifier le type de message de réponse
-    const identifyMessageType = (message) => {
-        if (message.includes('invalid PIN length')) {
-            return "InvalidPinLength";
-        } else if (message.includes('Solde insuffisant')) {
-            return "InsufficientBalance";
-        } else if (message.includes('incorrect four digit PIN')) {
-            return "IncorrectPin";
-        } else if (message.includes('Transaction a ete effectue avec succes') ||
-                   message.includes('Your transaction has been successfully processed')) {
-            return "SuccessfulTransaction";
-        } else if (message.includes('transaction a ete annulee avec succes')) {
-            return "CancelledTransaction";
-        } else if (message.includes('Impossible d\'obtenir le statut de la transaction après plusieurs tentatives')) {
-            return "UnableToGetTransactionStatus";
-        } else {
-            return "Other";
-        }
-    };
-
-    // Gestion de la sélection du mode de paiement
-    const handlePaymentMethodChange = (e) => {
-        setPaymentData((prev) => ({ ...prev, method: e.target.value }));
-    };
+    // Assurez-vous que le composant ne se rend pas avant la fin du chargement de l'authentification
+    if (loadingAuth) {
+        return <p>Chargement...</p>;
+    }
 
     return (
         <div className="bg-white shadow-lg rounded-lg p-6 w-full max-w-3xl mx-auto">
@@ -473,9 +522,8 @@ export default function CreateCommunityForm({ onClose, onCreate }) {
                     </button>
                     <button
                         type="submit"
-                        className={`bg-purple-500 text-white px-4 py-2 rounded-lg hover:bg-purple-600 transition ${
-                            loading ? "opacity-50 cursor-not-allowed" : ""
-                        }`}
+                        className={`bg-purple-500 text-white px-4 py-2 rounded-lg hover:bg-purple-600 transition ${loading ? "opacity-50 cursor-not-allowed" : ""
+                            }`}
                         disabled={loading}
                     >
                         {loading ? "En cours..." : step === 1 ? "Suivant" : "Valider le paiement"}
