@@ -1,4 +1,3 @@
-/* eslint-disable @next/next/no-img-element */
 // app/components/CommunityList.js
 "use client";
 

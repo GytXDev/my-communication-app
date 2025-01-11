@@ -57,7 +57,6 @@ export default function Sidebar({ selectedMenu, onMenuSelect, userData }) {
                 className="p-2 rounded hover:bg-gray-100"
             >
                 {userData?.photoURL ? (
-                    // eslint-disable-next-line @next/next/no-img-element
                     <img
                         src={userData.photoURL}
                         alt="Profil"
